@@ -771,14 +771,10 @@ class Block(nn.Module):
         mix = self.resid_mix.to(dtype=x.dtype)
         x_in = mix[0][None, None, :] * x + mix[1][None, None, :] * x0
         attn_out, raw_v = self.attn(self.attn_norm(x_in) * self.ln_scale_factor, q_w, k_w, v_w, out_w, v_embed=v_embed, v0=v0)
-        if resid_lambda_attn is not None:
-            x_out = resid_lambda_attn * x_in + self.attn_scale.to(dtype=x_in.dtype)[None, None, :] * attn_out
-        else:
-            x_out = x_in + self.attn_scale.to(dtype=x_in.dtype)[None, None, :] * attn_out
-        if resid_lambda_mlp is not None:
-            x_out = resid_lambda_mlp * x_out + self.mlp_scale.to(dtype=x_out.dtype)[None, None, :] * self.mlp(self.mlp_norm(x_out) * self.ln_scale_factor, up_w, down_w)
-        else:
-            x_out = x_out + self.mlp_scale.to(dtype=x_out.dtype)[None, None, :] * self.mlp(self.mlp_norm(x_out) * self.ln_scale_factor, up_w, down_w)
+        rl_a = resid_lambda_attn if resid_lambda_attn is not None else x_in.new_ones(1)
+        rl_m = resid_lambda_mlp if resid_lambda_mlp is not None else x_in.new_ones(1)
+        x_out = rl_a * x_in + self.attn_scale.to(dtype=x_in.dtype)[None, None, :] * attn_out
+        x_out = rl_m * x_out + self.mlp_scale.to(dtype=x_out.dtype)[None, None, :] * self.mlp(self.mlp_norm(x_out) * self.ln_scale_factor, up_w, down_w)
         if self.dtg_gate is not None:
             gate = torch.sigmoid(self.dtg_gate(x_in.detach()))
             x_out = x_in + gate * (x_out - x_in)
@@ -1428,6 +1424,7 @@ def dequantize_mixed_int6(result: dict[str, Tensor], meta: dict[str, object],
 # --- Training ---
 
 def main() -> None:
+    torch._dynamo.config.cache_size_limit = 64
     code = Path(__file__).read_text(encoding="utf-8")
     args = Hyperparameters()
     # zeropower_via_newtonschulz5 runs eagerly with bmm -- do NOT compile
