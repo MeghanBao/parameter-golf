@@ -1,0 +1,8 @@
+{
+  "name": "XSA11_LegalTTT",
+  "github_id": "MeghanBao",
+  "val_bpb": null,
+  "date": "2026-03-30",
+  "hardware": "8xH100 SXM",
+  "notes": "XSA-all (11L) + Legal Score-First TTT + SLOT (δ∈ℝ⁵¹², 5 steps, lr=0.003) + ResidLambdas (√1.1 init, 5× scalar_lr) + LeakyReLU(0.5)^2 + Parallel Muon + SWA fix + QAT global fix + warmdown 2000"
+}
